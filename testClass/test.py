@@ -1,43 +1,121 @@
 # -*- coding: utf-8 -*-
 # Author    ： ly
 # Datetime  ： 2021/9/15 11:44
+# 查看当前电脑上安装了哪些打印机：
 import os
 
-CHECK_TYPE = {
-    1: u'检查',
-    11: u'胃镜',
-    111: u'电子胃镜',
-    112: u'染色放大',
-    113: u'超声胃镜',
-    12: u'肠镜',
-    121: u'电子肠镜',
-    122: u'染色放大',
-    123: u'超声肠镜',
-    2: u"治疗",
-    21: u"ESD",
-    211: u"胃ESD",
-    212: u"肠ESD",
-    22: u"静脉曲张",
-    23: u"ERCP",
-    231: u"ERCP",
-    24: u"息肉",
-    241: u"胃息肉治疗",
-    242: u"肠息肉治疗",
+import win32print
+import win32api
+import collections
 
-}
-d = {'folder': 'C:/Users/Administrator/Desktop/葵花宝典/Python书籍',
-     'files': 'C:/Users/Administrator/Desktop/葵花宝典/Python书籍\\Python爬虫开发与项目实战.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\Python知识手册-V3.0.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\Python编程快速上手—让繁琐工作自动化.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\《Python+Cookbook》第三版中文v2.0.0.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\《Python深度学习》2018中文版.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\《Python深度学习》2018英文版.pdf\nC:/Users/Administrator/Desktop/葵花宝典/Python书籍\\像计算机科学家一样思考python.pdf\n'}
+import win32ui
+from PIL import Image, ImageWin
+
+printers = win32print.EnumPrinters(3)
+# for _ in printers:
+# print(_)
+
+# 查看当前电脑上安装了哪些打印机
+
+printer = win32print.GetDefaultPrinter()
+
+
+# print(printer)
+
+
+# 递归查找文件，并放入到对应的列表中
+def get_file_all(path):
+    dl = collections.deque()
+    dl.append(path)
+    png_path_list = []
+    pdf_path_list = []
+    while len(dl) != 0:
+        pop = dl.popleft()
+        listfile = os.listdir(pop)
+        for i in listfile:
+            newpath = os.path.join(pop, i)
+            if os.path.isdir(newpath):
+                print("目录：", newpath)
+                dl.append(newpath)
+            else:
+                if newpath.split(".")[-1] in ['png', 'img', 'jpg', 'jpeg']:
+                    png_path_list.append(newpath)
+                elif newpath.split(".")[-1] in ['pdf', 'txt', 'xlsx', 'md', 'doc', 'docx']:
+                    pdf_path_list.append(newpath)
+    return png_path_list, pdf_path_list
+
+
+# 打印图片
+def printer_png_loading(file_path):
+    try:
+        # HORZRES / VERTRES = printable area 可打印的区域
+        HORZRES = 8
+        VERTRES = 10
+        # PHYSICALWIDTH/HEIGHT = total area 总面积
+        #
+        PHYSICALWIDTH = 110
+        PHYSICALHEIGHT = 111
+        printer_name = win32print.GetDefaultPrinter()
+        hDC = win32ui.CreateDC()
+        hDC.CreatePrinterDC(printer_name)
+        printable_area = hDC.GetDeviceCaps(HORZRES), hDC.GetDeviceCaps(VERTRES)
+        printer_size = hDC.GetDeviceCaps(PHYSICALWIDTH), hDC.GetDeviceCaps(PHYSICALHEIGHT)
+        # #打开图像，如果宽度大于高，计算出要乘的倍数
+        # ＃通过每个像素使它尽可能大
+        # ＃页面不失真。
+        bmp = Image.open(file_path)
+        if bmp.size[0] > bmp.size[1]:
+            bmp = bmp.rotate(90)
+
+        ratios = [1.0 * printable_area[0] / bmp.size[0], 1.0 * printable_area[1] / bmp.size[1]]
+        scale = min(ratios)
+
+        # ＃开始打印作业，并将位图绘制到
+        # ＃按比例缩放打印机设备。
+        hDC.StartDoc(file_path)
+        hDC.StartPage()
+
+        dib = ImageWin.Dib(bmp)
+        scaled_width, scaled_height = [int(scale * i) for i in bmp.size]
+        x1 = int((printer_size[0] - scaled_width) / 2)
+        y1 = int((printer_size[1] - scaled_height) / 2)
+        x2 = x1 + scaled_width
+        y2 = y1 + scaled_height
+        dib.draw(hDC.GetHandleOutput(), (x1, y1, x2, y2))
+
+        hDC.EndPage()
+        hDC.EndDoc()
+        hDC.DeleteDC()
+
+        print('-ok!!--The picture prints normally---' + file_path)
+    except Exception as ex:
+        print('-error!!--Picture prints abnormally---' + file_path)
+        print(repr(ex))
+
+
+# 打印其他文件
+def printer_other_loading(self, file_path):
+    try:
+        open(file_path, "r")
+        win32api.ShellExecute(
+            0,
+            "print",
+            file_path,
+            '/d:"%s"' % self.printer_name,
+            ".",
+            0
+        )
+        print('--ok!!-the pdf prints normally---' + file_path)
+    except Exception as ex:
+        print(repr(ex))
+        print('-error!!--the pdf prints abnormally---', + file_path)
+
 
 if __name__ == '__main__':
-    # 从前端获取的value值 作为key查字典得到对应的value值
-    # check_type = 111
-    # print(CHECK_TYPE[check_type])
-    folder = d.get('files', '').replace('\n', ',').split(',')
-    # print(folder)
-    flag = None
-    for f in folder:
-        ext = os.path.splitext(f)[1]
-        if ext == '.pdf':
-            flag = True
-            break
-    print(flag)
+    path = r'D:/打印测试/图片\Big Sur_1.jpg'
+    # png_path_list, pdf_path_list = get_file_all(path)
+    #
+    # print(png_path_list, pdf_path_list)
+    # for img in png_path_list:
+    #
+    printer_png_loading(path)

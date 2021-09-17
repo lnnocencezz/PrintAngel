@@ -1,1 +1,1 @@
-pyinstaller -F -i p1.ico  -w print_words.py
+pyinstaller -F -i p1.ico  -w print_angel.py
